@@ -21,7 +21,7 @@ use WCPD\Rest\DispatchController;
 
 final class Plugin {
 
-	public const VERSION     = '1.0.2';
+	public const VERSION     = '1.0.3';
 	public const TEXT_DOMAIN = 'woocommerce-parcel-dispatch';
 
 	private DispatchController $controller;

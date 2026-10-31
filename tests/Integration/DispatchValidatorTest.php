@@ -29,6 +29,21 @@ class DispatchValidatorTest extends DatabaseTestCase {
 		$this->assertTrue( $this->validator->validate( $order, '1234567890' ) );
 	}
 
+	public function test_valid_packed_order_passes(): void {
+		add_filter(
+			'wc_order_statuses',
+			static function ( array $statuses ): array {
+				$statuses['wc-packed'] = 'بسته بندی شده';
+
+				return $statuses;
+			}
+		);
+
+		$order = $this->create_order( '1234567890', 'packed' );
+
+		$this->assertTrue( $this->validator->validate( $order, '1234567890' ) );
+	}
+
 	/**
 	 * @dataProvider ineligible_statuses
 	 */

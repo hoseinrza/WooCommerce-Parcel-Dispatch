@@ -16,6 +16,12 @@ final class OrderEligibilityPolicy {
 	public const DEFAULT_ALLOWED_STATUSES = array( 'processing', 'completed' );
 
 	/**
+	 * Registered statuses with these labels are treated as "packed" and
+	 * allowed by default, regardless of their slug.
+	 */
+	private const PACKED_STATUS_LABELS = array( 'بسته بندی شده', 'packed' );
+
+	/**
 	 * Filter the order statuses that may be dispatched.
 	 *
 	 * Usage:
@@ -36,10 +42,10 @@ final class OrderEligibilityPolicy {
 	 * @return string[] Normalized status slugs without the `wc-` prefix.
 	 */
 	public function allowed_statuses(): array {
-		$statuses = apply_filters( self::ALLOWED_STATUSES_FILTER, self::DEFAULT_ALLOWED_STATUSES );
+		$statuses = apply_filters( self::ALLOWED_STATUSES_FILTER, $this->default_allowed_statuses() );
 
 		if ( ! is_array( $statuses ) ) {
-			$statuses = self::DEFAULT_ALLOWED_STATUSES;
+			$statuses = $this->default_allowed_statuses();
 		}
 
 		$normalized = array_map(
@@ -48,6 +54,40 @@ final class OrderEligibilityPolicy {
 		);
 
 		return array_values( array_unique( array_filter( $normalized ) ) );
+	}
+
+	/**
+	 * @return string[] Default statuses plus any registered "packed" status.
+	 */
+	private function default_allowed_statuses(): array {
+		$statuses = self::DEFAULT_ALLOWED_STATUSES;
+
+		foreach ( wc_get_order_statuses() as $slug => $label ) {
+			if ( $this->is_packed_label( (string) $label ) ) {
+				$statuses[] = (string) $slug;
+			}
+		}
+
+		return $statuses;
+	}
+
+	private function is_packed_label( string $label ): bool {
+		$normalized = $this->normalize_label( $label );
+
+		foreach ( self::PACKED_STATUS_LABELS as $packed_label ) {
+			if ( $normalized === $this->normalize_label( $packed_label ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	private function normalize_label( string $label ): string {
+		$label = str_replace( array( "\xE2\x80\x8C", "\xC2\xA0" ), ' ', $label );
+		$label = preg_replace( '/\s+/u', ' ', $label );
+
+		return strtolower( trim( (string) $label ) );
 	}
 
 	public function is_eligible( WC_Order $order ): bool {
