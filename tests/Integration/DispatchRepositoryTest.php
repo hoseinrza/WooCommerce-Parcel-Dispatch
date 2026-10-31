@@ -46,6 +46,8 @@ class DispatchRepositoryTest extends DatabaseTestCase {
 				'order_id'      => 42,
 				'user_id'       => 7,
 				'dispatched_at' => '2026-10-31 08:15:00',
+				'returned_at'   => null,
+				'returned_by'   => null,
 			),
 			$record
 		);
@@ -102,7 +104,7 @@ class DispatchRepositoryTest extends DatabaseTestCase {
 		$this->assertSame( '2026-01-02 03:04:05', $record['dispatched_at'] );
 	}
 
-	public function test_database_rejects_duplicate_barcode_rows(): void {
+	public function test_database_rejects_two_active_rows_for_the_same_barcode(): void {
 		global $wpdb;
 
 		$this->repository->create( '1234567890', 42, 7, '2026-10-31 08:15:00' );
@@ -111,12 +113,13 @@ class DispatchRepositoryTest extends DatabaseTestCase {
 		$inserted = $wpdb->insert(
 			DatabaseInstaller::table_name(),
 			array(
-				'barcode'       => '1234567890',
-				'order_id'      => 43,
-				'user_id'       => 8,
-				'dispatched_at' => '2026-10-31 09:00:00',
+				'barcode'        => '1234567890',
+				'active_barcode' => '1234567890',
+				'order_id'       => 43,
+				'user_id'        => 8,
+				'dispatched_at'  => '2026-10-31 09:00:00',
 			),
-			array( '%s', '%d', '%d', '%s' )
+			array( '%s', '%s', '%d', '%d', '%s' )
 		);
 		$last_error = $wpdb->last_error;
 		$wpdb->suppress_errors( false );
@@ -124,6 +127,31 @@ class DispatchRepositoryTest extends DatabaseTestCase {
 		$this->assertFalse( $inserted );
 		$this->assertStringContainsString( 'Duplicate entry', $last_error );
 		$this->assertSame( 1, $this->count_rows() );
+	}
+
+	public function test_database_allows_many_returned_rows_for_the_same_barcode(): void {
+		global $wpdb;
+
+		$this->repository->create( '1234567890', 42, 7, '2026-10-31 08:15:00' );
+
+		foreach ( array( '2026-10-31 09:00:00', '2026-10-31 10:00:00' ) as $returned_at ) {
+			$inserted = $wpdb->insert(
+				DatabaseInstaller::table_name(),
+				array(
+					'barcode'       => '1234567890',
+					'order_id'      => 42,
+					'user_id'       => 7,
+					'dispatched_at' => '2026-10-31 08:00:00',
+					'returned_at'   => $returned_at,
+					'returned_by'   => 7,
+				),
+				array( '%s', '%d', '%d', '%s', '%s', '%d' )
+			);
+
+			$this->assertNotFalse( $inserted );
+		}
+
+		$this->assertSame( 3, $this->count_rows() );
 	}
 
 	public function test_create_returns_zero_when_database_insert_fails(): void {
@@ -223,5 +251,91 @@ class DispatchRepositoryTest extends DatabaseTestCase {
 
 		$this->assertSame( 1, $page['total'] );
 		$this->assertCount( 1, $page['items'] );
+	}
+
+	public function test_find_returns_a_returned_record(): void {
+		$id = $this->repository->create( '1234567890', 42, 7, '2026-10-31 08:15:00' );
+		$this->repository->mark_returned( (int) $id, 8, '2026-10-31 09:30:00' );
+
+		$record = $this->repository->find( (int) $id );
+
+		$this->assertSame( '2026-10-31 09:30:00', $record['returned_at'] );
+		$this->assertSame( 8, $record['returned_by'] );
+	}
+
+	public function test_find_returns_null_for_an_unknown_id(): void {
+		$this->assertNull( $this->repository->find( 999999 ) );
+	}
+
+	public function test_mark_returned_stamps_the_row_and_frees_the_barcode(): void {
+		$id = $this->repository->create( '1234567890', 42, 7, '2026-10-31 08:15:00' );
+
+		$returned = $this->repository->mark_returned( (int) $id, 8, '2026-10-31 09:30:00' );
+
+		$this->assertTrue( $returned );
+		$this->assertNull( $this->repository->find_by_barcode( '1234567890' ) );
+
+		$record = $this->repository->find( (int) $id );
+		$this->assertSame( '2026-10-31 09:30:00', $record['returned_at'] );
+		$this->assertSame( 8, $record['returned_by'] );
+	}
+
+	public function test_mark_returned_refuses_a_second_return(): void {
+		$id = $this->repository->create( '1234567890', 42, 7, '2026-10-31 08:15:00' );
+		$this->repository->mark_returned( (int) $id, 8, '2026-10-31 09:30:00' );
+
+		$this->assertFalse( $this->repository->mark_returned( (int) $id, 9, '2026-10-31 10:00:00' ) );
+
+		$record = $this->repository->find( (int) $id );
+		$this->assertSame( '2026-10-31 09:30:00', $record['returned_at'] );
+		$this->assertSame( 8, $record['returned_by'] );
+	}
+
+	public function test_a_returned_barcode_can_be_dispatched_again(): void {
+		$first = $this->repository->create( '1234567890', 42, 7, '2026-10-31 08:15:00' );
+		$this->repository->mark_returned( (int) $first, 8, '2026-10-31 09:30:00' );
+
+		$second = $this->repository->create( '1234567890', 42, 9, '2026-10-31 10:00:00' );
+
+		$this->assertGreaterThan( 0, $second );
+		$this->assertNotSame( (int) $first, (int) $second );
+		$this->assertSame( 2, $this->count_rows() );
+
+		$active = $this->repository->find_by_barcode( '1234567890' );
+		$this->assertSame( (int) $second, $active['id'] );
+		$this->assertSame( 9, $active['user_id'] );
+	}
+
+	public function test_is_order_dispatched_is_false_after_a_return(): void {
+		$id = $this->repository->create( '111', 42, 7, '2026-10-31 08:00:00' );
+
+		$this->repository->mark_returned( (int) $id, 8, '2026-10-31 09:00:00' );
+
+		$this->assertFalse( $this->repository->is_order_dispatched( 42 ) );
+	}
+
+	public function test_is_order_dispatched_is_true_while_another_parcel_is_active(): void {
+		$returned = $this->repository->create( '111', 42, 7, '2026-10-31 08:00:00' );
+		$this->repository->mark_returned( (int) $returned, 8, '2026-10-31 09:00:00' );
+		$this->repository->create( '222', 42, 7, '2026-10-31 10:00:00' );
+
+		$this->assertTrue( $this->repository->is_order_dispatched( 42 ) );
+	}
+
+	public function test_paginate_includes_return_fields(): void {
+		$id = $this->repository->create( '111', 42, 7, '2026-10-31 08:00:00' );
+		$this->repository->mark_returned( (int) $id, 8, '2026-10-31 09:00:00' );
+
+		$item = $this->repository->paginate( array(), 1, 20 )['items'][0];
+
+		$this->assertSame( '2026-10-31 09:00:00', $item['returned_at'] );
+		$this->assertSame( 8, $item['returned_by'] );
+	}
+
+	public function test_paginate_keeps_returned_rows(): void {
+		$id = $this->repository->create( '111', 42, 7, '2026-10-31 08:00:00' );
+		$this->repository->mark_returned( (int) $id, 8, '2026-10-31 09:00:00' );
+
+		$this->assertSame( 1, $this->repository->paginate( array(), 1, 20 )['total'] );
 	}
 }

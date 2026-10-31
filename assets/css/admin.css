@@ -376,6 +376,33 @@
 	text-align: left;
 }
 
+.wcpd-status-cell {
+	align-items: center;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.wcpd-badge {
+	border-radius: 999px;
+	display: inline-block;
+	font-size: 12px;
+	font-weight: 600;
+	line-height: 1;
+	padding: 5px 10px;
+	white-space: nowrap;
+}
+
+.wcpd-badge--active {
+	background: #e7f5ea;
+	color: #146c2e;
+}
+
+.wcpd-badge--returned {
+	background: #f0f0f1;
+	color: #50575e;
+}
+
 .wcpd-history-table.striped > tbody > tr:nth-child(odd) {
 	background-color: #fff;
 }

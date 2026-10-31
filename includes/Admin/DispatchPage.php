@@ -76,6 +76,13 @@ final class DispatchPage {
 					'noItems'        => __( 'این سفارش قلمی ندارد.', 'woocommerce-parcel-dispatch' ),
 					'notDispatched'  => __( 'هنوز خروج نخورده است.', 'woocommerce-parcel-dispatch' ),
 					'alreadyScanned' => __( 'این بارکد قبلاً خروج خورده است.', 'woocommerce-parcel-dispatch' ),
+					'statusActive'   => __( 'خروج خورده', 'woocommerce-parcel-dispatch' ),
+					'statusReturned' => __( 'بازگشت به انبار', 'woocommerce-parcel-dispatch' ),
+					'returnAction'   => __( 'بازگشت به انبار', 'woocommerce-parcel-dispatch' ),
+					'returnConfirm'  => __( 'بازگشت این مرسوله به انبار ثبت شود؟', 'woocommerce-parcel-dispatch' ),
+					'returning'      => __( 'در حال ثبت بازگشت…', 'woocommerce-parcel-dispatch' ),
+					'returnedSuccess' => __( 'بازگشت مرسوله به انبار ثبت شد.', 'woocommerce-parcel-dispatch' ),
+					'returnFailed'   => __( 'ثبت بازگشت ناموفق بود. دوباره تلاش کنید.', 'woocommerce-parcel-dispatch' ),
 				),
 			)
 		);
@@ -243,11 +250,12 @@ final class DispatchPage {
 								<th scope="col"><?php esc_html_e( 'سفارش', 'woocommerce-parcel-dispatch' ); ?></th>
 								<th scope="col"><?php esc_html_e( 'اپراتور', 'woocommerce-parcel-dispatch' ); ?></th>
 								<th scope="col"><?php esc_html_e( 'زمان ثبت', 'woocommerce-parcel-dispatch' ); ?></th>
+								<th scope="col"><?php esc_html_e( 'وضعیت', 'woocommerce-parcel-dispatch' ); ?></th>
 							</tr>
 						</thead>
 						<tbody id="wcpd-history-body">
 							<tr>
-								<td colspan="4"><?php esc_html_e( 'در حال بارگیری…', 'woocommerce-parcel-dispatch' ); ?></td>
+								<td colspan="5"><?php esc_html_e( 'در حال بارگیری…', 'woocommerce-parcel-dispatch' ); ?></td>
 							</tr>
 						</tbody>
 					</table>

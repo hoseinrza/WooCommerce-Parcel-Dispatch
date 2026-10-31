@@ -44,17 +44,71 @@ class DatabaseInstallerTest extends DatabaseTestCase {
 		$this->assertSame( 'NO', $columns['user_id']['Null'] );
 		$this->assertSame( 'datetime', strtolower( $columns['dispatched_at']['Type'] ) );
 		$this->assertSame( 'NO', $columns['dispatched_at']['Null'] );
+		$this->assertSame( 'datetime', strtolower( $columns['returned_at']['Type'] ) );
+		$this->assertSame( 'YES', $columns['returned_at']['Null'] );
+		$this->assertSame( 'bigint(20) unsigned', strtolower( $columns['returned_by']['Type'] ) );
+		$this->assertSame( 'YES', $columns['returned_by']['Null'] );
+		$this->assertSame( 'varchar(100)', strtolower( $columns['active_barcode']['Type'] ) );
+		$this->assertSame( 'YES', $columns['active_barcode']['Null'] );
 	}
 
-	public function test_barcode_column_has_unique_index(): void {
-		global $wpdb;
+	public function test_active_barcode_has_a_unique_index(): void {
+		$this->installer->install();
+		$indexes = $this->indexes_for_column( 'active_barcode' );
 
+		$this->assertCount( 1, $indexes );
+		$this->assertSame( 'unique_active_barcode', $indexes[0]['Key_name'] );
+		$this->assertSame( '0', (string) $indexes[0]['Non_unique'] );
+	}
+
+	public function test_barcode_is_indexed_but_no_longer_unique(): void {
 		$this->installer->install();
 		$indexes = $this->indexes_for_column( 'barcode' );
 
 		$this->assertCount( 1, $indexes );
-		$this->assertSame( 'unique_barcode', $indexes[0]['Key_name'] );
-		$this->assertSame( '0', (string) $indexes[0]['Non_unique'] );
+		$this->assertSame( 'barcode', $indexes[0]['Key_name'] );
+		$this->assertSame( '1', (string) $indexes[0]['Non_unique'] );
+	}
+
+	public function test_upgrade_drops_the_legacy_unique_barcode_index(): void {
+		global $wpdb;
+
+		$this->installer->install();
+		$wpdb->query( 'ALTER TABLE ' . $this->table() . ' ADD UNIQUE KEY unique_barcode (barcode)' );
+
+		$this->installer->install();
+
+		$names = array_column( $this->indexes_for_column( 'barcode' ), 'Key_name' );
+		$this->assertNotContains( 'unique_barcode', $names );
+	}
+
+	public function test_upgrade_backfills_active_barcode_for_existing_rows(): void {
+		global $wpdb;
+
+		$this->installer->install();
+		$wpdb->insert(
+			$this->table(),
+			array(
+				'barcode'       => 'LEGACY-ACTIVE-1',
+				'order_id'      => 999,
+				'user_id'       => 1,
+				'dispatched_at' => '2026-10-31 08:00:00',
+			)
+		);
+
+		$this->installer->install();
+
+		$this->assertSame(
+			'LEGACY-ACTIVE-1',
+			$wpdb->get_var(
+				$wpdb->prepare(
+					'SELECT active_barcode FROM ' . $this->table() . ' WHERE barcode = %s LIMIT 1',
+					'LEGACY-ACTIVE-1'
+				)
+			)
+		);
+
+		$wpdb->delete( $this->table(), array( 'barcode' => 'LEGACY-ACTIVE-1' ) );
 	}
 
 	public function test_order_id_is_indexed_but_not_unique(): void {

@@ -56,6 +56,13 @@ const I18N = {
 	noItems: 'بدون قلم',
 	notDispatched: 'خروج نخورده',
 	alreadyScanned: 'قبلاً اسکن شده',
+	statusActive: 'خروج خورده',
+	statusReturned: 'بازگشت به انبار',
+	returnAction: 'بازگشت به انبار',
+	returnConfirm: 'بازگشت این مرسوله به انبار ثبت شود؟',
+	returning: 'در حال ثبت بازگشت…',
+	returnedSuccess: 'بازگشت مرسوله به انبار ثبت شد.',
+	returnFailed: 'ثبت بازگشت ناموفق بود.',
 };
 
 function orderFor( barcode, id = 42 ) {
@@ -110,6 +117,11 @@ function setup( t, config = {} ) {
 		pageSize: 20,
 		i18n: I18N,
 	};
+	window.__confirmMessages = [];
+	window.confirm = ( message ) => {
+		window.__confirmMessages.push( message );
+		return config.confirm !== false;
+	};
 
 	window.eval( script );
 
@@ -135,6 +147,12 @@ function setup( t, config = {} ) {
 		},
 		dispatches() {
 			return calls.filter( ( call ) => call.path === '/wcpd/v1/dispatch' );
+		},
+		returns() {
+			return calls.filter( ( call ) => call.path === '/wcpd/v1/returns' );
+		},
+		historyItems() {
+			return environment.document.querySelectorAll( '#wcpd-history-body tr' );
 		},
 		flush() {
 			return new Promise( ( resolve ) => setTimeout( resolve, 0 ) );
@@ -449,6 +467,150 @@ test( 'history keeps the order number as text without a safe edit url', async ( 
 	assert.equal( body.querySelectorAll( 'a' ).length, 0 );
 	assert.equal( body.rows[ 0 ].cells[ 1 ].textContent, '#42' );
 	assert.equal( body.rows[ 1 ].cells[ 1 ].textContent, '#43' );
+} );
+
+const RETURN_FIXTURE = {
+	items: [
+		{
+			id: 9,
+			barcode: '111',
+			order_id: 42,
+			user_id: 7,
+			dispatched_at: '2026-10-31 12:00:00',
+			returned_at: null,
+			returned_by: null,
+			operator: { id: 7, name: 'Operator' },
+		},
+		{
+			id: 8,
+			barcode: '111',
+			order_id: 42,
+			user_id: 7,
+			dispatched_at: '2026-10-31 10:00:00',
+			returned_at: '2026-10-31 11:00:00',
+			returned_by: 7,
+			operator: { id: 7, name: 'Operator' },
+		},
+	],
+	total: 2,
+	page: 1,
+	per_page: 20,
+	pages: 1,
+};
+
+async function renderHistory( t, config = {} ) {
+	const env = setup( t, { history: RETURN_FIXTURE, ...config } );
+	await env.flush();
+	await env.flush();
+
+	return env;
+}
+
+test( 'history marks active dispatches and offers a return action', async ( t ) => {
+	const env = await renderHistory( t );
+	const row = env.historyItems()[ 0 ];
+	const badge = row.querySelector( '.wcpd-badge--active' );
+	const button = row.querySelector( '.wcpd-return' );
+
+	assert.ok( badge );
+	assert.equal( badge.textContent, I18N.statusActive );
+	assert.ok( button );
+	assert.equal( button.textContent, I18N.returnAction );
+	assert.equal( button.getAttribute( 'data-dispatch-id' ), '9' );
+} );
+
+test( 'history shows returned dispatches with a badge and no action', async ( t ) => {
+	const env = await renderHistory( t );
+	const row = env.historyItems()[ 1 ];
+	const badge = row.querySelector( '.wcpd-badge--returned' );
+
+	assert.ok( badge );
+	assert.equal( badge.textContent, I18N.statusReturned );
+	assert.equal( row.querySelector( '.wcpd-return' ), null );
+} );
+
+test( 'cancelling the return confirmation sends no request', async ( t ) => {
+	const env = await renderHistory( t, { confirm: false } );
+
+	env.historyItems()[ 0 ].querySelector( '.wcpd-return' ).click();
+	await env.flush();
+
+	assert.equal( env.window.__confirmMessages.length, 1 );
+	assert.equal( env.window.__confirmMessages[ 0 ], I18N.returnConfirm );
+	assert.equal( env.returns().length, 0 );
+} );
+
+test( 'confirming a return sends one request and reports success', async ( t ) => {
+	const env = await renderHistory( t );
+
+	env.historyItems()[ 0 ].querySelector( '.wcpd-return' ).click();
+	await Promise.resolve();
+
+	assert.equal( env.returns().length, 1 );
+	assert.equal( env.returns()[ 0 ].method, 'POST' );
+	assert.equal( env.returns()[ 0 ].data.dispatch_id, 9 );
+
+	env.pending.find( ( entry ) => entry.call.path === '/wcpd/v1/returns' ).resolve( {
+		dispatch: { ...RETURN_FIXTURE.items[ 0 ], returned_at: '2026-10-31 13:00:00', returned_by: 7 },
+	} );
+	await env.flush();
+
+	assert.equal( env.document.getElementById( 'wcpd-message' ).hidden, false );
+	assert.equal( env.document.getElementById( 'wcpd-message' ).textContent, I18N.returnedSuccess );
+	assert.ok(
+		env.calls.filter( ( call ) => call.path.indexOf( '/wcpd/v1/dispatches' ) === 0 ).length >= 2,
+		'history reloads after a successful return'
+	);
+	assert.equal( env.document.activeElement, env.input );
+} );
+
+test( 'repeated return clicks send one request', async ( t ) => {
+	const env = await renderHistory( t );
+	const button = env.historyItems()[ 0 ].querySelector( '.wcpd-return' );
+
+	button.click();
+	button.click();
+	button.click();
+	await env.flush();
+
+	assert.equal( env.returns().length, 1 );
+} );
+
+test( 'a failed return keeps the action and shows the error', async ( t ) => {
+	const env = await renderHistory( t );
+	const button = env.historyItems()[ 0 ].querySelector( '.wcpd-return' );
+
+	button.click();
+	await Promise.resolve();
+
+	env.pending.find( ( entry ) => entry.call.path === '/wcpd/v1/returns' ).reject( {
+		code: 'wcpd_return_failed',
+		message: 'failed',
+	} );
+	await env.flush();
+
+	assert.equal( env.document.getElementById( 'wcpd-message' ).hidden, false );
+	assert.equal( env.document.getElementById( 'wcpd-message' ).textContent, I18N.returnFailed );
+	assert.equal( button.disabled, false );
+	assert.equal( env.returns().length, 1 );
+} );
+
+test( 'an already recorded return refreshes the history instead of failing silently', async ( t ) => {
+	const env = await renderHistory( t );
+
+	env.historyItems()[ 0 ].querySelector( '.wcpd-return' ).click();
+	await Promise.resolve();
+
+	env.pending.find( ( entry ) => entry.call.path === '/wcpd/v1/returns' ).reject( {
+		code: 'wcpd_already_returned',
+		message: 'already returned',
+	} );
+	await env.flush();
+
+	assert.ok(
+		env.calls.filter( ( call ) => call.path.indexOf( '/wcpd/v1/dispatches' ) === 0 ).length >= 2,
+		'history reloads after a conflict'
+	);
 } );
 
 test( 'order card renders payload fields as inert text', async ( t ) => {

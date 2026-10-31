@@ -264,6 +264,78 @@ class DispatchServiceTest extends DatabaseTestCase {
 		$this->assertCount( 1, $this->repository->history_for_order( 9999 ) );
 	}
 
+	public function test_return_to_warehouse_marks_the_dispatch_and_adds_a_private_note(): void {
+		$order    = $this->create_order( '1234567890' );
+		$dispatch = $this->service->dispatch( '1234567890', $order->get_id(), $this->operator_id )['dispatch'];
+
+		$result = $this->service->return_to_warehouse( (int) $dispatch['id'], $this->operator_id );
+
+		$this->assertIsArray( $result );
+		$this->assertSame( $dispatch['id'], $result['id'] );
+		$this->assertNotNull( $result['returned_at'] );
+		$this->assertSame( $this->operator_id, $result['returned_by'] );
+		$this->assertSame( 'processing', wc_get_order( $order->get_id() )->get_status() );
+
+		$notes = array_values(
+			array_filter(
+				$this->dispatch_notes( $order->get_id(), '1234567890' ),
+				static fn( $note ): bool => str_contains( $note->content, 'به انبار بازگشت' )
+			)
+		);
+
+		$this->assertCount( 1, $notes );
+		$this->assertFalse( (bool) $notes[0]->customer_note );
+		$this->assertStringContainsString( 'Warehouse Alice', $notes[0]->content );
+		$this->assertStringNotContainsString( 'UTC', $notes[0]->content );
+	}
+
+	public function test_return_to_warehouse_rejects_an_unknown_dispatch(): void {
+		$result = $this->service->return_to_warehouse( 999999, $this->operator_id );
+
+		$this->assertInstanceOf( \WP_Error::class, $result );
+		$this->assertSame( 'wcpd_dispatch_not_found', $result->get_error_code() );
+	}
+
+	public function test_return_to_warehouse_rejects_a_second_return(): void {
+		$order    = $this->create_order( '1234567890' );
+		$dispatch = $this->service->dispatch( '1234567890', $order->get_id(), $this->operator_id )['dispatch'];
+		$this->service->return_to_warehouse( (int) $dispatch['id'], $this->operator_id );
+
+		$result = $this->service->return_to_warehouse( (int) $dispatch['id'], $this->operator_id );
+
+		$this->assertInstanceOf( \WP_Error::class, $result );
+		$this->assertSame( 'wcpd_already_returned', $result->get_error_code() );
+		$this->assertCount(
+			1,
+			array_filter(
+				$this->dispatch_notes( $order->get_id(), '1234567890' ),
+				static fn( $note ): bool => str_contains( $note->content, 'به انبار بازگشت' )
+			)
+		);
+	}
+
+	public function test_the_barcode_can_be_dispatched_again_after_a_return(): void {
+		$order = $this->create_order( '1234567890' );
+		$first = $this->service->dispatch( '1234567890', $order->get_id(), $this->operator_id )['dispatch'];
+
+		$this->service->return_to_warehouse( (int) $first['id'], $this->operator_id );
+		$second = $this->service->dispatch( '1234567890', $order->get_id(), $this->operator_id );
+
+		$this->assertIsArray( $second );
+		$this->assertNotSame( $first['id'], $second['dispatch']['id'] );
+		$this->assertNull( $second['dispatch']['returned_at'] );
+		$this->assertCount( 2, $this->repository->history_for_order( $order->get_id() ) );
+	}
+
+	public function test_return_to_warehouse_works_when_the_order_no_longer_exists(): void {
+		$id = $this->repository->create( '1234567890', 999999, $this->operator_id, '2026-10-31 08:00:00' );
+
+		$result = $this->service->return_to_warehouse( (int) $id, $this->operator_id );
+
+		$this->assertIsArray( $result );
+		$this->assertNotNull( $result['returned_at'] );
+	}
+
 	public function test_dispatch_reports_a_database_error_without_success(): void {
 		$order = $this->create_order( '1234567890' );
 

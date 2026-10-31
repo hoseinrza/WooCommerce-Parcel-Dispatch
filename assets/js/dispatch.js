@@ -38,6 +38,7 @@
 
 	var lookupLabel = lookupButton ? lookupButton.textContent : '';
 	var busy = false;
+	var returnBusy = false;
 	var historyBusy = false;
 	var currentOrder = null;
 	var historyPage = 1;
@@ -263,6 +264,49 @@
 		}
 	}
 
+	async function returnToWarehouse( button ) {
+		if ( returnBusy ) {
+			return;
+		}
+
+		var dispatchId = parseInt( button.getAttribute( 'data-dispatch-id' ), 10 );
+
+		if ( ! dispatchId || dispatchId < 1 ) {
+			return;
+		}
+
+		if ( ! window.confirm( i18n.returnConfirm || '' ) ) {
+			return;
+		}
+
+		returnBusy = true;
+		button.disabled = true;
+		setMessage( i18n.returning || '', 'info' );
+
+		try {
+			await apiFetch( {
+				path: '/wcpd/v1/returns',
+				method: 'POST',
+				data: { dispatch_id: dispatchId },
+			} );
+
+			setMessage( i18n.returnedSuccess || '', 'success' );
+			focusScanner();
+			loadHistory( historyPage );
+		} catch ( error ) {
+			button.disabled = false;
+
+			if ( error && ( error.code === 'wcpd_already_returned' || error.code === 'wcpd_dispatch_not_found' ) ) {
+				setMessage( error.message || i18n.returnFailed || '', 'error' );
+				loadHistory( historyPage );
+			} else {
+				setMessage( i18n.returnFailed || '', 'error' );
+			}
+		} finally {
+			returnBusy = false;
+		}
+	}
+
 	function appendCell( row, value ) {
 		var cell = document.createElement( 'td' );
 		cell.textContent = value;
@@ -290,6 +334,28 @@
 		row.appendChild( cell );
 	}
 
+	function appendStatusCell( row, item ) {
+		var cell = document.createElement( 'td' );
+		cell.className = 'wcpd-status-cell';
+
+		var returned = Boolean( item.returned_at );
+		var badge = document.createElement( 'span' );
+		badge.className = 'wcpd-badge ' + ( returned ? 'wcpd-badge--returned' : 'wcpd-badge--active' );
+		badge.textContent = returned ? i18n.statusReturned || '' : i18n.statusActive || '';
+		cell.appendChild( badge );
+
+		if ( ! returned ) {
+			var button = document.createElement( 'button' );
+			button.type = 'button';
+			button.className = 'button button-small wcpd-return';
+			button.setAttribute( 'data-dispatch-id', String( item.id ) );
+			button.textContent = i18n.returnAction || '';
+			cell.appendChild( button );
+		}
+
+		row.appendChild( cell );
+	}
+
 	function renderHistory( response ) {
 		var items = response && Array.isArray( response.items ) ? response.items : [];
 
@@ -300,7 +366,7 @@
 		if ( items.length === 0 ) {
 			var emptyRow = document.createElement( 'tr' );
 			var emptyCell = document.createElement( 'td' );
-			emptyCell.colSpan = 4;
+			emptyCell.colSpan = 5;
 			emptyCell.textContent = i18n.emptyHistory || '';
 			emptyRow.appendChild( emptyCell );
 			historyBody.appendChild( emptyRow );
@@ -314,6 +380,7 @@
 			appendOrderCell( row, item );
 			appendCell( row, operator );
 			appendCell( row, item.dispatched_at );
+			appendStatusCell( row, item );
 			historyBody.appendChild( row );
 		} );
 
@@ -366,7 +433,7 @@
 
 			var failedRow = document.createElement( 'tr' );
 			var failedCell = document.createElement( 'td' );
-			failedCell.colSpan = 4;
+			failedCell.colSpan = 5;
 			failedCell.textContent = error && error.message ? error.message : i18n.loadFailed || '';
 			failedRow.appendChild( failedCell );
 			historyBody.appendChild( failedRow );
@@ -401,6 +468,21 @@
 	if ( confirmButton ) {
 		confirmButton.addEventListener( 'click', confirmDispatch );
 	}
+
+	historyBody.addEventListener( 'click', function ( event ) {
+		var target = event.target;
+
+		if ( ! target || typeof target.closest !== 'function' ) {
+			return;
+		}
+
+		var button = target.closest( '.wcpd-return' );
+
+		if ( button ) {
+			event.preventDefault();
+			returnToWarehouse( button );
+		}
+	} );
 
 	if ( cancelButton ) {
 		cancelButton.addEventListener( 'click', function () {

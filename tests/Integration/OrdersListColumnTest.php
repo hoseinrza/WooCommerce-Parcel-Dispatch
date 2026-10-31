@@ -75,6 +75,18 @@ class OrdersListColumnTest extends DatabaseTestCase {
 		$this->assertStringNotContainsString( 'dashicons-yes-alt', $html );
 	}
 
+	public function test_returned_order_renders_a_cross_again(): void {
+		$order = $this->create_order( '1234567890' );
+		$id    = $this->repository->create( '1234567890', $order->get_id(), 1, '2026-10-31 10:00:00' );
+		$this->repository->mark_returned( $id, 1, '2026-10-31 11:00:00' );
+
+		$html = $this->render_hpos( $order );
+
+		$this->assertStringContainsString( 'wcpd-order-flag--no', $html );
+		$this->assertStringContainsString( 'dashicons-dismiss', $html );
+		$this->assertStringNotContainsString( 'dashicons-yes-alt', $html );
+	}
+
 	public function test_other_columns_render_nothing(): void {
 		$order = $this->create_order( '1234567890' );
 

@@ -38,6 +38,9 @@ final class DispatchController {
 		'wcpd_order_not_eligible'  => 422,
 		'wcpd_barcode_mismatch'    => 422,
 		'wcpd_dispatch_failed'     => 500,
+		'wcpd_dispatch_not_found'  => 404,
+		'wcpd_already_returned'    => 409,
+		'wcpd_return_failed'       => 500,
 	);
 
 	public function __construct( private DispatchService $service ) {}
@@ -76,6 +79,25 @@ final class DispatchController {
 						'validate_callback' => 'rest_validate_request_arg',
 					),
 					'order_id' => array(
+						'required'          => true,
+						'type'              => 'integer',
+						'minimum'           => 1,
+						'sanitize_callback' => 'absint',
+						'validate_callback' => 'rest_validate_request_arg',
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			self::REST_NAMESPACE,
+			'/returns',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( $this, 'returns' ),
+				'permission_callback' => array( $this, 'permission_check' ),
+				'args'                => array(
+					'dispatch_id' => array(
 						'required'          => true,
 						'type'              => 'integer',
 						'minimum'           => 1,
@@ -198,6 +220,22 @@ final class DispatchController {
 			),
 			201
 		);
+	}
+
+	/**
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function returns( WP_REST_Request $request ) {
+		$result = $this->service->return_to_warehouse(
+			(int) $request->get_param( 'dispatch_id' ),
+			get_current_user_id()
+		);
+
+		if ( $result instanceof WP_Error ) {
+			return $this->error( $result );
+		}
+
+		return new WP_REST_Response( array( 'dispatch' => $this->present_dispatch( $result ) ), 200 );
 	}
 
 	/**

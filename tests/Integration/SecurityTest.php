@@ -204,8 +204,71 @@ class SecurityTest extends RestTestCase {
 
 		$get_dispatch = $this->request( 'GET', '/wcpd/v1/dispatch', array(), wp_create_nonce( 'wp_rest' ) );
 		$post_history = $this->request( 'POST', '/wcpd/v1/dispatches', array(), wp_create_nonce( 'wp_rest' ) );
+		$get_returns  = $this->request( 'GET', '/wcpd/v1/returns', array(), wp_create_nonce( 'wp_rest' ) );
 
 		$this->assertContains( $get_dispatch->get_status(), array( 404, 405 ) );
 		$this->assertContains( $post_history->get_status(), array( 404, 405 ) );
+		$this->assertContains( $get_returns->get_status(), array( 404, 405 ) );
+	}
+
+	public function test_subscriber_cannot_return_even_with_a_valid_nonce(): void {
+		$order    = $this->create_order( '1234567890' );
+		$this->as_operator();
+		$dispatch = $this->api(
+			'POST',
+			'/wcpd/v1/dispatch',
+			array(
+				'barcode'  => '1234567890',
+				'order_id' => $order->get_id(),
+			)
+		)->get_data()['dispatch'];
+
+		$this->as_operator( $this->create_user_with_role( 'subscriber' ) );
+		$response = $this->api( 'POST', '/wcpd/v1/returns', array( 'dispatch_id' => $dispatch['id'] ) );
+
+		$this->assertSame( 403, $response->get_status() );
+		$this->assertSame( 'wcpd_forbidden', $response->get_data()['code'] );
+		$this->assertNotNull( $this->repository->find_by_barcode( '1234567890' ) );
+		$this->assertCount(
+			0,
+			array_filter(
+				$this->dispatch_notes( $order->get_id(), '1234567890' ),
+				static fn( $note ): bool => str_contains( $note->content, 'به انبار بازگشت' )
+			)
+		);
+	}
+
+	public function test_csrf_failure_does_not_mark_a_dispatch_returned(): void {
+		$order    = $this->create_order( '1234567890' );
+		$this->as_operator();
+		$dispatch = $this->api(
+			'POST',
+			'/wcpd/v1/dispatch',
+			array(
+				'barcode'  => '1234567890',
+				'order_id' => $order->get_id(),
+			)
+		)->get_data()['dispatch'];
+
+		$response = $this->request(
+			'POST',
+			'/wcpd/v1/returns',
+			array( 'dispatch_id' => $dispatch['id'] ),
+			wp_create_nonce( 'wcpd_unrelated_action' )
+		);
+
+		$this->assertSame( 403, $response->get_status() );
+		$active = $this->repository->find_by_barcode( '1234567890' );
+		$this->assertNotNull( $active );
+		$this->assertNull( $active['returned_at'] );
+		$this->assertSame(
+			0,
+			count(
+				array_filter(
+					$this->dispatch_notes( $order->get_id(), '1234567890' ),
+					static fn( $note ): bool => str_contains( $note->content, 'به انبار بازگشت' )
+				)
+			)
+		);
 	}
 }

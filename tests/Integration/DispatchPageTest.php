@@ -64,6 +64,8 @@ class DispatchPageTest extends IntegrationTestCase {
 		$this->assertStringContainsString( 'id="wcpd-history-filters"', $html );
 		$this->assertStringContainsString( 'aria-live="polite"', $html );
 		$this->assertStringContainsString( 'زمان ثبت</th>', $html );
+		$this->assertStringContainsString( 'وضعیت</th>', $html );
+		$this->assertStringContainsString( 'colspan="5"', strtolower( $html ) );
 		$this->assertStringNotContainsString( 'UTC', $html );
 	}
 
@@ -79,6 +81,12 @@ class DispatchPageTest extends IntegrationTestCase {
 		$this->assertStringContainsString( 'wcpdData', (string) $inline );
 		$this->assertStringContainsString( 'restUrl', (string) $inline );
 		$this->assertStringContainsString( 'nonce', (string) $inline );
+		$this->assertStringContainsString( 'statusActive', (string) $inline );
+		$this->assertStringContainsString( 'statusReturned', (string) $inline );
+		$this->assertStringContainsString( 'returnAction', (string) $inline );
+		$this->assertStringContainsString( 'returnConfirm', (string) $inline );
+		$this->assertStringContainsString( 'returning', (string) $inline );
+		$this->assertStringContainsString( 'returnedSuccess', (string) $inline );
 	}
 
 	public function test_assets_are_not_enqueued_on_other_pages(): void {

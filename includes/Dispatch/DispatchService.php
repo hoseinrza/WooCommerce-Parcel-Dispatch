@@ -122,19 +122,74 @@ final class DispatchService {
 			);
 		}
 
-		$dispatch = array(
-			'id'            => $id,
-			'barcode'       => $barcode,
-			'order_id'      => $order->get_id(),
-			'user_id'       => $user_id,
-			'dispatched_at' => $dispatched_at,
-		);
+		$dispatch = $this->repository->find( $id );
+
+		if ( null === $dispatch ) {
+			return new WP_Error(
+				'wcpd_dispatch_failed',
+				__( 'ثبت خروج مرسوله ناموفق بود. دوباره تلاش کنید.', 'woocommerce-parcel-dispatch' )
+			);
+		}
 
 		$order->add_order_note( $this->note_text( $dispatch ), 0, false );
 
 		return array(
 			'dispatch' => $dispatch,
 			'order'    => $order,
+		);
+	}
+
+	/**
+	 * Marks a dispatched parcel as returned to the warehouse.
+	 *
+	 * @return array|WP_Error The returned dispatch record.
+	 */
+	public function return_to_warehouse( int $dispatch_id, int $user_id ): array|WP_Error {
+		$dispatch = $this->repository->find( $dispatch_id );
+
+		if ( null === $dispatch ) {
+			return new WP_Error(
+				'wcpd_dispatch_not_found',
+				__( 'مرسوله‌ای با این شناسه پیدا نشد.', 'woocommerce-parcel-dispatch' )
+			);
+		}
+
+		if ( null !== $dispatch['returned_at'] ) {
+			return $this->already_returned( $dispatch );
+		}
+
+		$returned_at = current_time( 'mysql' );
+
+		if ( ! $this->repository->mark_returned( $dispatch_id, $user_id, $returned_at ) ) {
+			$current = $this->repository->find( $dispatch_id );
+
+			if ( null !== $current && null !== $current['returned_at'] ) {
+				return $this->already_returned( $current );
+			}
+
+			return new WP_Error(
+				'wcpd_return_failed',
+				__( 'ثبت بازگشت مرسوله ناموفق بود. دوباره تلاش کنید.', 'woocommerce-parcel-dispatch' )
+			);
+		}
+
+		$dispatch['returned_at'] = $returned_at;
+		$dispatch['returned_by'] = $user_id;
+
+		$order = wc_get_order( $dispatch['order_id'] );
+
+		if ( $order instanceof WC_Order ) {
+			$order->add_order_note( $this->return_note_text( $dispatch ), 0, false );
+		}
+
+		return $dispatch;
+	}
+
+	private function already_returned( array $dispatch ): WP_Error {
+		return new WP_Error(
+			'wcpd_already_returned',
+			__( 'این مرسوله قبلاً به انبار بازگشته است.', 'woocommerce-parcel-dispatch' ),
+			array( 'dispatch' => $dispatch )
 		);
 	}
 
@@ -168,6 +223,17 @@ final class DispatchService {
 			$this->operator_name( $dispatch['user_id'] ),
 			$dispatch['user_id'],
 			$dispatch['dispatched_at']
+		);
+	}
+
+	private function return_note_text( array $dispatch ): string {
+		return sprintf(
+			/* translators: 1: barcode, 2: operator display name, 3: operator ID, 4: timestamp in the site timezone */
+			__( 'مرسوله به انبار بازگشت. بارکد: %1$s. اپراتور: %2$s (#%3$d). زمان ثبت: %4$s.', 'woocommerce-parcel-dispatch' ),
+			$dispatch['barcode'],
+			$this->operator_name( (int) $dispatch['returned_by'] ),
+			$dispatch['returned_by'],
+			$dispatch['returned_at']
 		);
 	}
 
