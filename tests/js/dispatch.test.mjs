@@ -70,7 +70,7 @@ function orderFor( barcode, id = 42 ) {
 	};
 }
 
-function setup( t ) {
+function setup( t, config = {} ) {
 	const dom = new JSDOM( MARKUP, {
 		url: 'https://example.test/wp-admin/admin.php?page=wcpd-dispatch',
 		runScripts: 'outside-only',
@@ -89,7 +89,7 @@ function setup( t ) {
 		calls.push( call );
 
 		if ( call.path.indexOf( '/wcpd/v1/dispatches' ) === 0 ) {
-			return Promise.resolve( { items: [], total: 0, page: 1, per_page: 20, pages: 0 } );
+			return Promise.resolve( config.history || { items: [], total: 0, page: 1, per_page: 20, pages: 0 } );
 		}
 
 		return new Promise( ( resolve, reject ) => {
@@ -308,4 +308,59 @@ test( 'submitting the form with the lookup button behaves like a scan', async ( 
 
 	await resolveLookup( env, 0, orderFor( '0055555555' ) );
 	assert.equal( env.document.activeElement, env.input );
+} );
+
+test( 'history renders stored markup as inert text', async ( t ) => {
+	const payload = '<img src=x onerror="window.__wcpdXss=1"><script>window.__wcpdXss=2</script>';
+
+	const env = setup( t, {
+		history: {
+			items: [
+				{
+					id: 1,
+					barcode: payload,
+					order_id: 42,
+					user_id: 7,
+					dispatched_at: payload,
+					operator: { id: 7, name: payload },
+				},
+			],
+			total: 1,
+			page: 1,
+			per_page: 20,
+			pages: 1,
+		},
+	} );
+
+	await env.flush();
+	await env.flush();
+
+	const body = env.document.getElementById( 'wcpd-history-body' );
+
+	assert.equal( body.querySelectorAll( 'img, script' ).length, 0 );
+	assert.equal( env.window.__wcpdXss, undefined );
+	assert.equal( body.rows.length, 1 );
+	assert.equal( body.rows[ 0 ].cells[ 0 ].textContent, payload );
+	assert.equal( body.rows[ 0 ].cells[ 2 ].textContent, payload );
+	assert.equal( body.rows[ 0 ].cells[ 3 ].textContent, payload );
+} );
+
+test( 'order card renders payload fields as inert text', async ( t ) => {
+	const env = setup( t );
+	const payload = '<img src=x onerror="window.__wcpdXss=3">';
+
+	await scan( env, '1234567890' );
+	await resolveLookup( env, 0, {
+		...orderFor( '1234567890' ),
+		customer: { name: payload, phone: payload },
+		shipping_address: payload,
+	} );
+
+	const card = env.document.getElementById( 'wcpd-order' );
+
+	assert.equal( card.querySelectorAll( 'img, script' ).length, 0 );
+	assert.equal( env.window.__wcpdXss, undefined );
+	assert.equal( env.document.getElementById( 'wcpd-order-customer' ).textContent, payload );
+	assert.equal( env.document.getElementById( 'wcpd-order-phone' ).textContent, payload );
+	assert.equal( env.document.getElementById( 'wcpd-order-address' ).textContent, payload );
 } );

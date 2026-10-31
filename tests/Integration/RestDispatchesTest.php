@@ -55,6 +55,19 @@ class RestDispatchesTest extends RestTestCase {
 		$this->assertSame( 1, $response->get_data()['total'] );
 	}
 
+	public function test_history_with_an_unusable_barcode_filter_returns_no_rows(): void {
+		$this->as_operator();
+		$this->seed();
+
+		foreach ( array( "' OR 1=1 -- ", '" OR "1"="1', "123\n456" ) as $payload ) {
+			$response = $this->api( 'GET', '/wcpd/v1/dispatches', array( 'barcode' => $payload ) );
+
+			$this->assertSame( 200, $response->get_status(), $payload );
+			$this->assertSame( 0, $response->get_data()['total'], $payload );
+			$this->assertSame( array(), $response->get_data()['items'], $payload );
+		}
+	}
+
 	public function test_history_filters_by_order_id(): void {
 		$this->as_operator();
 		$this->seed();

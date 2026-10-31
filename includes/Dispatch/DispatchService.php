@@ -147,6 +147,14 @@ final class DispatchService {
 	public function history( array $filters = array(), int $page = 1, int $per_page = 20 ): array {
 		if ( isset( $filters['barcode'] ) ) {
 			$filters['barcode'] = $this->normalizer->normalize( (string) $filters['barcode'] );
+
+			if ( '' === $filters['barcode'] ) {
+				// An unusable filter must not silently fall back to the whole history.
+				return array(
+					'items' => array(),
+					'total' => 0,
+				);
+			}
 		}
 
 		return $this->repository->paginate( $filters, $page, $per_page );
