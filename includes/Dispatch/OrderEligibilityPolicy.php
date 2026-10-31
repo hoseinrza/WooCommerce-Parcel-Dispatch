@@ -22,6 +22,11 @@ final class OrderEligibilityPolicy {
 	private const PACKED_STATUS_LABELS = array( 'بسته بندی شده', 'packed' );
 
 	/**
+	 * Known "packed" status slugs, allowed even when their label changes.
+	 */
+	private const PACKED_STATUS_SLUGS = array( 'pws-packaged' );
+
+	/**
 	 * Filter the order statuses that may be dispatched.
 	 *
 	 * Usage:
@@ -63,7 +68,9 @@ final class OrderEligibilityPolicy {
 		$statuses = self::DEFAULT_ALLOWED_STATUSES;
 
 		foreach ( wc_get_order_statuses() as $slug => $label ) {
-			if ( $this->is_packed_label( (string) $label ) ) {
+			$normalized_slug = str_replace( 'wc-', '', (string) $slug );
+
+			if ( $this->is_packed_label( (string) $label ) || in_array( $normalized_slug, self::PACKED_STATUS_SLUGS, true ) ) {
 				$statuses[] = (string) $slug;
 			}
 		}

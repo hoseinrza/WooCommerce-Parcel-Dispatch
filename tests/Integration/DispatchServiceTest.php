@@ -160,6 +160,18 @@ class DispatchServiceTest extends DatabaseTestCase {
 		$this->assertSame( '0012345678', wc_get_order( $order->get_id() )->get_meta( 'post_barcode', true ) );
 	}
 
+	public function test_dispatch_keeps_the_order_status_unchanged_and_saves_separately(): void {
+		$order  = $this->create_order( '1234567890', 'processing' );
+		$before = $order->get_status();
+
+		$result = $this->service->dispatch( '1234567890', $order->get_id(), $this->operator_id );
+
+		$this->assertIsArray( $result );
+		$this->assertSame( $before, wc_get_order( $order->get_id() )->get_status() );
+		$this->assertNotNull( $this->repository->find_by_barcode( '1234567890' ) );
+		$this->assertCount( 1, $this->dispatch_notes( $order->get_id(), '1234567890' ) );
+	}
+
 	public function test_dispatch_rejects_an_unknown_barcode(): void {
 		$result = $this->service->dispatch( '9999999999', 1, $this->operator_id );
 
