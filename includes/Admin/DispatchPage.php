@@ -87,12 +87,19 @@ final class DispatchPage {
 		}
 		?>
 		<div class="wrap wcpd-wrap" dir="rtl">
-			<h1 class="wp-heading-inline"><?php esc_html_e( 'خروج مرسولات', 'woocommerce-parcel-dispatch' ); ?></h1>
+			<header class="wcpd-hero">
+				<span class="wcpd-brand-mark" aria-hidden="true">
+					<span class="dashicons dashicons-archive"></span>
+				</span>
+				<div class="wcpd-hero-copy">
+					<span class="wcpd-brand-kicker"><?php esc_html_e( 'WooCommerce Parcel Dispatch', 'woocommerce-parcel-dispatch' ); ?></span>
+					<h1 class="wp-heading-inline"><?php esc_html_e( 'خروج مرسولات', 'woocommerce-parcel-dispatch' ); ?></h1>
+					<p class="wcpd-intro">
+						<?php esc_html_e( 'بارکد پستی را با بارکدخوان اسکن کنید یا دستی وارد کنید و Enter بزنید. خروج مرسوله فقط پس از تأیید شما ثبت می‌شود.', 'woocommerce-parcel-dispatch' ); ?>
+					</p>
+				</div>
+			</header>
 			<hr class="wp-header-end" />
-
-			<p class="wcpd-intro">
-				<?php esc_html_e( 'بارکد پستی را با بارکدخوان اسکن کنید یا دستی وارد کنید و Enter بزنید. خروج مرسوله فقط پس از تأیید شما ثبت می‌شود.', 'woocommerce-parcel-dispatch' ); ?>
-			</p>
 
 			<noscript>
 				<div class="notice notice-error">
