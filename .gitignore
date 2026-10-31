@@ -1,0 +1,8 @@
+/vendor/
+/node_modules/
+/wordpress/
+/.sandbox/
+/tests/wp-content/plugins/woocommerce/
+.phpunit.cache/
+.phpunit.result.cache
+tests/wp-content/uploads/

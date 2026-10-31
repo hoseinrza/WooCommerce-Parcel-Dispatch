@@ -1,0 +1,39 @@
+{
+    "name": "amirhossein/woocommerce-parcel-dispatch",
+    "description": "Warehouse parcel dispatch for WooCommerce using Iranian Post barcodes.",
+    "type": "wordpress-plugin",
+    "license": "GPL-2.0-or-later",
+    "require": {
+        "php": ">=8.2"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.6",
+        "wp-phpunit/wp-phpunit": "^7.1",
+        "roots/wordpress": "^7.1",
+        "yoast/phpunit-polyfills": "^2.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "WCPD\\": "includes/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "WCPD\\Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "platform": {
+            "php": "8.2.32"
+        },
+        "sort-packages": true,
+        "allow-plugins": {
+            "roots/wordpress-core-installer": true
+        }
+    },
+    "scripts": {
+        "test": "phpunit",
+        "test:unit": "phpunit --testsuite unit",
+        "test:integration": "phpunit --testsuite integration"
+    }
+}

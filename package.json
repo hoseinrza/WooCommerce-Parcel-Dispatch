@@ -1,0 +1,12 @@
+{
+  "name": "woocommerce-parcel-dispatch",
+  "version": "1.0.1",
+  "private": true,
+  "description": "JavaScript tests for the WooCommerce Parcel Dispatch admin screen.",
+  "scripts": {
+    "test:js": "node --test tests/js/dispatch.test.mjs"
+  },
+  "devDependencies": {
+    "jsdom": "^30.1.3"
+  }
+}
