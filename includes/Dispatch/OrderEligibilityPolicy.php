@@ -24,7 +24,7 @@ final class OrderEligibilityPolicy {
 	/**
 	 * Known status slugs that are allowed even when their label changes.
 	 */
-	private const KNOWN_STATUS_SLUGS = array( 'pws-packaged', 'pws-ready-to-ship' );
+	private const KNOWN_STATUS_SLUGS = array( 'pws-packaged', 'pws-ready-to-ship', 'pws-shipping' );
 
 	/**
 	 * Filter the order statuses that may be dispatched.
