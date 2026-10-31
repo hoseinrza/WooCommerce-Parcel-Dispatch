@@ -25,6 +25,7 @@ const MARKUP = `<!doctype html>
 		</dl>
 		<button type="button" id="wcpd-confirm">تأیید خروج مرسوله</button>
 		<button type="button" id="wcpd-cancel">لغو</button>
+		<a id="wcpd-open-order" target="_blank" rel="noopener noreferrer" hidden>باز کردن سفارش</a>
 	</section>
 	<form id="wcpd-history-filters">
 		<input type="text" name="barcode" />
@@ -249,9 +250,13 @@ test( 'scanning never dispatches; explicit confirmation sends the displayed orde
 	const env = setup( t );
 
 	await scan( env, '0012345678901' );
-	await resolveLookup( env, 0, orderFor( '0012345678901' ) );
+	await resolveLookup( env, 0, {
+		...orderFor( '0012345678901' ),
+		edit_url: 'https://example.test/wp-admin/admin.php?page=wc-orders&action=edit&id=42',
+	} );
 
 	assert.equal( env.dispatches().length, 0 );
+	assert.equal( env.document.getElementById( 'wcpd-open-order' ).hidden, false );
 
 	env.document.getElementById( 'wcpd-confirm' ).click();
 	await Promise.resolve();
@@ -272,6 +277,39 @@ test( 'scanning never dispatches; explicit confirmation sends the displayed orde
 	assert.equal( env.document.activeElement, env.input );
 	assert.equal( env.input.value, '' );
 	assert.equal( env.document.getElementById( 'wcpd-order' ).hidden, true );
+	assert.equal( env.document.getElementById( 'wcpd-open-order' ).hidden, true );
+} );
+
+test( 'open-order link points at the order edit screen and clears on cancel', async ( t ) => {
+	const env = setup( t );
+	const link = env.document.getElementById( 'wcpd-open-order' );
+	const editUrl = 'https://example.test/wp-admin/admin.php?page=wc-orders&action=edit&id=42';
+
+	assert.equal( link.hidden, true );
+
+	await scan( env, '0012345678901' );
+	await resolveLookup( env, 0, { ...orderFor( '0012345678901' ), edit_url: editUrl } );
+
+	assert.equal( link.hidden, false );
+	assert.equal( link.getAttribute( 'href' ), editUrl );
+	assert.equal( link.getAttribute( 'target' ), '_blank' );
+	assert.match( link.getAttribute( 'rel' ) || '', /noopener/ );
+
+	env.document.getElementById( 'wcpd-cancel' ).click();
+
+	assert.equal( link.hidden, true );
+	assert.equal( link.hasAttribute( 'href' ), false );
+} );
+
+test( 'open-order link refuses non-http urls', async ( t ) => {
+	const env = setup( t );
+	const link = env.document.getElementById( 'wcpd-open-order' );
+
+	await scan( env, '1234567890' );
+	await resolveLookup( env, 0, { ...orderFor( '1234567890' ), edit_url: 'javascript:alert(1)' } );
+
+	assert.equal( link.hidden, true );
+	assert.equal( link.hasAttribute( 'href' ), false );
 } );
 
 test( 'repeated confirmation clicks send one dispatch request', async ( t ) => {

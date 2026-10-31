@@ -330,6 +330,10 @@
 	border-radius: 6px;
 }
 
+.wcpd-open-order {
+	margin-inline-start: auto;
+}
+
 .wcpd-history-filters {
 	align-items: center;
 	border-bottom: 1px solid #f0f0f1;

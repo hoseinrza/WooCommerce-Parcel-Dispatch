@@ -25,6 +25,7 @@
 	var orderCard = document.getElementById( 'wcpd-order' );
 	var confirmButton = document.getElementById( 'wcpd-confirm' );
 	var cancelButton = document.getElementById( 'wcpd-cancel' );
+	var openOrderLink = document.getElementById( 'wcpd-open-order' );
 	var filtersForm = document.getElementById( 'wcpd-history-filters' );
 	var historyBody = document.getElementById( 'wcpd-history-body' );
 	var prevButton = document.getElementById( 'wcpd-history-prev' );
@@ -98,7 +99,30 @@
 			confirmButton.disabled = true;
 		}
 
+		if ( openOrderLink ) {
+			openOrderLink.hidden = true;
+			openOrderLink.removeAttribute( 'href' );
+		}
+
 		orderCard.hidden = true;
+	}
+
+	function setOpenOrderLink( order ) {
+		if ( ! openOrderLink ) {
+			return;
+		}
+
+		var url = order && typeof order.edit_url === 'string' ? order.edit_url : '';
+
+		// Never navigate to a scheme other than http(s).
+		if ( ! /^https?:\/\//i.test( url ) ) {
+			openOrderLink.hidden = true;
+			openOrderLink.removeAttribute( 'href' );
+			return;
+		}
+
+		openOrderLink.href = url;
+		openOrderLink.hidden = false;
 	}
 
 	function renderOrder( order ) {
@@ -133,6 +157,7 @@
 		}
 
 		orderCard.hidden = false;
+		setOpenOrderLink( order );
 
 		if ( confirmButton ) {
 			confirmButton.disabled = false;

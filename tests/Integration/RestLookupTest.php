@@ -25,6 +25,15 @@ class RestLookupTest extends RestTestCase {
 		$this->assertSame( 2, $data['order']['items'][0]['quantity'] );
 	}
 
+	public function test_lookup_includes_the_order_edit_url(): void {
+		$this->as_operator();
+		$order = $this->create_order( '1234567890' );
+
+		$data = $this->api( 'POST', '/wcpd/v1/barcode/lookup', array( 'barcode' => '1234567890' ) )->get_data();
+
+		$this->assertSame( $order->get_edit_order_url(), $data['order']['edit_url'] );
+	}
+
 	public function test_lookup_accepts_persian_digits_and_whitespace(): void {
 		$this->as_operator();
 		$order = $this->create_order( '1234567890' );

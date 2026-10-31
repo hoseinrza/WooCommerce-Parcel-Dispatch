@@ -186,6 +186,9 @@ final class DispatchPage {
 					<button type="button" class="button button-secondary button-hero" id="wcpd-cancel">
 						<?php esc_html_e( 'لغو', 'woocommerce-parcel-dispatch' ); ?>
 					</button>
+					<a id="wcpd-open-order" class="button button-secondary button-hero wcpd-open-order" target="_blank" rel="noopener noreferrer" hidden>
+						<?php esc_html_e( 'باز کردن سفارش', 'woocommerce-parcel-dispatch' ); ?>
+					</a>
 				</div>
 			</section>
 

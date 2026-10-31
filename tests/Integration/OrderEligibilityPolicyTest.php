@@ -129,6 +129,15 @@ class OrderEligibilityPolicyTest extends IntegrationTestCase {
 		$this->assertTrue( $this->policy->is_eligible( $order ) );
 	}
 
+	public function test_known_pws_ready_to_ship_slug_is_allowed_with_a_different_label(): void {
+		$this->register_status( 'pws-ready-to-ship', 'آماده ارسال' );
+
+		$order = $this->order_with_status( 'pws-ready-to-ship' );
+
+		$this->assertContains( 'pws-ready-to-ship', $this->policy->allowed_statuses() );
+		$this->assertTrue( $this->policy->is_eligible( $order ) );
+	}
+
 	public function test_packed_detection_ignores_other_custom_statuses(): void {
 		$this->register_status( 'packing', 'در حال بسته بندی' );
 

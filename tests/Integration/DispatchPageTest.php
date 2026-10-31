@@ -57,6 +57,9 @@ class DispatchPageTest extends IntegrationTestCase {
 		$this->assertStringContainsString( 'autocomplete="off"', $html );
 		$this->assertStringContainsString( 'id="wcpd-scan-form"', $html );
 		$this->assertStringContainsString( 'id="wcpd-confirm"', $html );
+		$this->assertStringContainsString( 'id="wcpd-open-order"', $html );
+		$this->assertStringContainsString( 'target="_blank"', $html );
+		$this->assertStringContainsString( 'rel="noopener noreferrer"', $html );
 		$this->assertStringContainsString( 'id="wcpd-history-body"', $html );
 		$this->assertStringContainsString( 'id="wcpd-history-filters"', $html );
 		$this->assertStringContainsString( 'aria-live="polite"', $html );

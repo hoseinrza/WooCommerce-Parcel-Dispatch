@@ -2,7 +2,7 @@
 /**
  * Plugin Name: WooCommerce Parcel Dispatch
  * Description: ثبت خروج مرسولات انبار با اسکن بارکد پستی سفارش‌های ووکامرس.
- * Version:     1.0.7
+ * Version:     1.0.8
  * Author:      AmirHossein Rezazadeh
  * License:     GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -20,7 +20,7 @@ declare( strict_types=1 );
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'WCPD_VERSION', '1.0.7' );
+define( 'WCPD_VERSION', '1.0.8' );
 define( 'WCPD_FILE', __FILE__ );
 define( 'WCPD_DIR', __DIR__ );
 

@@ -280,6 +280,7 @@ final class DispatchController {
 		return array(
 			'id'               => $order->get_id(),
 			'number'           => (string) $order->get_order_number(),
+			'edit_url'         => $order->get_edit_order_url(),
 			'status'           => $order->get_status(),
 			'status_label'     => wc_get_order_status_name( $order->get_status() ),
 			'barcode'          => (string) $order->get_meta( 'post_barcode', true ),
