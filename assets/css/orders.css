@@ -1,0 +1,29 @@
+/**
+ * Dispatch state column on the WooCommerce orders list.
+ */
+
+.column-wcpd_dispatch_state {
+	text-align: center;
+	width: 96px;
+}
+
+.wcpd-order-flag {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	line-height: 1;
+}
+
+.wcpd-order-flag .dashicons {
+	font-size: 22px;
+	height: 22px;
+	width: 22px;
+}
+
+.wcpd-order-flag--yes .dashicons {
+	color: #00a32a;
+}
+
+.wcpd-order-flag--no .dashicons {
+	color: #d63638;
+}

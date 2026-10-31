@@ -77,9 +77,20 @@ class DispatchRepositoryTest extends DatabaseTestCase {
 
 	public function test_exists_detects_a_registered_barcode(): void {
 		$this->repository->create( '1234567890', 42, 7, '2026-10-31 08:15:00' );
-
 		$this->assertTrue( $this->repository->exists( '1234567890' ) );
 		$this->assertFalse( $this->repository->exists( '0000000000' ) );
+	}
+
+	public function test_is_order_dispatched_is_true_for_an_order_with_a_record(): void {
+		$this->repository->create( '111', 42, 7, '2026-10-31 08:00:00' );
+
+		$this->assertTrue( $this->repository->is_order_dispatched( 42 ) );
+	}
+
+	public function test_is_order_dispatched_is_false_for_an_order_without_records(): void {
+		$this->repository->create( '111', 42, 7, '2026-10-31 08:00:00' );
+
+		$this->assertFalse( $this->repository->is_order_dispatched( 43 ) );
 	}
 
 	public function test_stores_user_id_and_timestamp_exactly(): void {

@@ -83,6 +83,17 @@ class DispatchRepository {
 		);
 	}
 
+	public function is_order_dispatched( int $order_id ): bool {
+		global $wpdb;
+
+		return null !== $wpdb->get_var(
+			$wpdb->prepare(
+				'SELECT 1 FROM ' . DatabaseInstaller::table_name() . ' WHERE order_id = %d LIMIT 1',
+				$order_id
+			)
+		);
+	}
+
 	/**
 	 * Paginated dispatch history, newest first.
 	 *

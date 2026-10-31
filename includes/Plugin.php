@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace WCPD;
 
 use WCPD\Admin\DispatchPage;
+use WCPD\Admin\OrdersListColumn;
 use WCPD\Barcode\BarcodeNormalizer;
 use WCPD\Barcode\BarcodeOrderFinder;
 use WCPD\Database\DatabaseInstaller;
@@ -21,12 +22,13 @@ use WCPD\Rest\DispatchController;
 
 final class Plugin {
 
-	public const VERSION     = '1.0.4';
+	public const VERSION     = '1.0.5';
 	public const TEXT_DOMAIN = 'woocommerce-parcel-dispatch';
 
 	private DispatchController $controller;
 	private DispatchPage $admin_page;
 	private DatabaseInstaller $installer;
+	private OrdersListColumn $orders_column;
 
 	public function __construct( string $plugin_file ) {
 		$repository = new DispatchRepository();
@@ -38,18 +40,22 @@ final class Plugin {
 			$repository
 		);
 
-		$this->controller = new DispatchController( $service );
-		$this->admin_page = new DispatchPage( $plugin_file );
-		$this->installer  = new DatabaseInstaller();
+		$this->controller    = new DispatchController( $service );
+		$this->admin_page    = new DispatchPage( $plugin_file );
+		$this->installer     = new DatabaseInstaller();
+		$this->orders_column = new OrdersListColumn( $repository, $plugin_file );
 	}
 
 	public static function boot( string $plugin_file ): self {
 		$plugin = new self( $plugin_file );
 
+		$plugin->orders_column->register();
+
 		add_action( 'rest_api_init', array( $plugin, 'register_rest_routes' ) );
 
 		add_action( 'admin_menu', array( $plugin, 'register_admin_menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $plugin, 'register_admin_assets' ) );
+		add_action( 'admin_enqueue_scripts', array( $plugin, 'register_order_list_assets' ) );
 		add_action( 'admin_init', array( $plugin, 'maybe_upgrade' ) );
 
 		return $plugin;
@@ -65,6 +71,10 @@ final class Plugin {
 
 	public function register_admin_assets( string $hook_suffix ): void {
 		$this->admin_page->enqueue_assets( $hook_suffix );
+	}
+
+	public function register_order_list_assets( string $hook_suffix ): void {
+		$this->orders_column->enqueue_assets( $hook_suffix );
 	}
 
 	public function maybe_upgrade(): void {
