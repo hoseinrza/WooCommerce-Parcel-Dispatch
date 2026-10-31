@@ -95,6 +95,47 @@ class DatabaseInstallerTest extends DatabaseTestCase {
 		$this->assertSame( DatabaseInstaller::DB_VERSION, get_option( DatabaseInstaller::DB_VERSION_OPTION ) );
 	}
 
+	public function test_upgrade_converts_legacy_utc_timestamps_to_site_time_once(): void {
+		global $wpdb;
+
+		$original_timezone = get_option( 'timezone_string' );
+		update_option( 'timezone_string', 'Asia/Tehran' );
+
+		try {
+			$this->installer->install();
+			delete_option( DatabaseInstaller::STORAGE_TIMEZONE_OPTION );
+			$wpdb->insert(
+				$this->table(),
+				array(
+					'barcode'       => 'LEGACY-UTC-1',
+					'order_id'      => 999,
+					'user_id'       => 1,
+					'dispatched_at' => '2026-10-31 08:00:00',
+				)
+			);
+
+			$this->installer->install();
+			$this->assertSame( '2026-10-31 11:30:00', $this->stored_time( 'LEGACY-UTC-1' ) );
+
+			$this->installer->install();
+			$this->assertSame( '2026-10-31 11:30:00', $this->stored_time( 'LEGACY-UTC-1' ) );
+		} finally {
+			$wpdb->delete( $this->table(), array( 'barcode' => 'LEGACY-UTC-1' ) );
+			update_option( 'timezone_string', $original_timezone );
+		}
+	}
+
+	private function stored_time( string $barcode ): ?string {
+		global $wpdb;
+
+		return $wpdb->get_var(
+			$wpdb->prepare(
+				'SELECT dispatched_at FROM ' . $this->table() . ' WHERE barcode = %s LIMIT 1',
+				$barcode
+			)
+		);
+	}
+
 	private function indexes_for_column( string $column ): array {
 		global $wpdb;
 

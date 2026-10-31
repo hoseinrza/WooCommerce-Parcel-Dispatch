@@ -60,6 +60,8 @@ class DispatchPageTest extends IntegrationTestCase {
 		$this->assertStringContainsString( 'id="wcpd-history-body"', $html );
 		$this->assertStringContainsString( 'id="wcpd-history-filters"', $html );
 		$this->assertStringContainsString( 'aria-live="polite"', $html );
+		$this->assertStringContainsString( 'زمان ثبت</th>', $html );
+		$this->assertStringNotContainsString( 'UTC', $html );
 	}
 
 	public function test_assets_are_enqueued_only_on_the_dispatch_page(): void {

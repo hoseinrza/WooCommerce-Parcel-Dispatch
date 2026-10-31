@@ -69,7 +69,7 @@ final class DispatchPage {
 					'emptyHistory'   => __( 'هنوز مرسوله‌ای خروج نخورده است.', 'woocommerce-parcel-dispatch' ),
 					'loadFailed'     => __( 'بارگیری تاریخچه ناموفق بود.', 'woocommerce-parcel-dispatch' ),
 					'orderFound'     => __( 'سفارش پیدا شد. برای ثبت خروج، دکمه «تأیید خروج مرسوله» را بزنید.', 'woocommerce-parcel-dispatch' ),
-					'previousDispatch' => __( 'ثبت قبلی: %1$s — %2$s (UTC)', 'woocommerce-parcel-dispatch' ),
+					'previousDispatch' => __( 'ثبت قبلی: %1$s — %2$s', 'woocommerce-parcel-dispatch' ),
 					'previous'       => __( 'قبلی', 'woocommerce-parcel-dispatch' ),
 					'next'           => __( 'بعدی', 'woocommerce-parcel-dispatch' ),
 					'pageOf'         => __( 'صفحه %1$s از %2$s', 'woocommerce-parcel-dispatch' ),
@@ -239,7 +239,7 @@ final class DispatchPage {
 								<th scope="col"><?php esc_html_e( 'بارکد', 'woocommerce-parcel-dispatch' ); ?></th>
 								<th scope="col"><?php esc_html_e( 'سفارش', 'woocommerce-parcel-dispatch' ); ?></th>
 								<th scope="col"><?php esc_html_e( 'اپراتور', 'woocommerce-parcel-dispatch' ); ?></th>
-								<th scope="col"><?php esc_html_e( 'زمان ثبت (UTC)', 'woocommerce-parcel-dispatch' ); ?></th>
+								<th scope="col"><?php esc_html_e( 'زمان ثبت', 'woocommerce-parcel-dispatch' ); ?></th>
 							</tr>
 						</thead>
 						<tbody id="wcpd-history-body">

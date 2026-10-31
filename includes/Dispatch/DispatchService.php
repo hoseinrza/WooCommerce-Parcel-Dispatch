@@ -97,7 +97,7 @@ final class DispatchService {
 		}
 
 		$barcode       = $this->normalizer->normalize( $raw_barcode );
-		$dispatched_at = current_time( 'mysql', true );
+		$dispatched_at = current_time( 'mysql' );
 
 		$id = $this->repository->create( $barcode, $order->get_id(), $user_id, $dispatched_at );
 
@@ -154,8 +154,8 @@ final class DispatchService {
 
 	private function note_text( array $dispatch ): string {
 		return sprintf(
-			/* translators: 1: barcode, 2: operator display name, 3: operator ID, 4: UTC timestamp */
-			__( 'مرسوله خروج خورد. بارکد: %1$s. اپراتور: %2$s (#%3$d). زمان ثبت به وقت UTC: %4$s.', 'woocommerce-parcel-dispatch' ),
+			/* translators: 1: barcode, 2: operator display name, 3: operator ID, 4: timestamp in the site timezone */
+			__( 'مرسوله خروج خورد. بارکد: %1$s. اپراتور: %2$s (#%3$d). زمان ثبت: %4$s.', 'woocommerce-parcel-dispatch' ),
 			$dispatch['barcode'],
 			$this->operator_name( $dispatch['user_id'] ),
 			$dispatch['user_id'],

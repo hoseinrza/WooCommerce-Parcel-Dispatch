@@ -124,20 +124,27 @@ class DispatchServiceTest extends DatabaseTestCase {
 		);
 	}
 
-	public function test_dispatch_records_a_utc_timestamp(): void {
-		$order = $this->create_order( '1234567890' );
-		$before = time();
+	public function test_dispatch_records_wordpress_local_timestamp(): void {
+		$original_timezone = get_option( 'timezone_string' );
+		update_option( 'timezone_string', 'Asia/Tehran' );
 
-		$result = $this->service->dispatch( '1234567890', $order->get_id(), $this->operator_id );
-		$after = time();
+		try {
+			$order  = $this->create_order( '1234567890' );
+			$before = strtotime( current_time( 'mysql' ) );
 
-		$this->assertMatchesRegularExpression(
-			'/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/',
-			$result['dispatch']['dispatched_at']
-		);
-		$timestamp = strtotime( $result['dispatch']['dispatched_at'] . ' UTC' );
-		$this->assertGreaterThanOrEqual( $before - 2, $timestamp );
-		$this->assertLessThanOrEqual( $after + 2, $timestamp );
+			$result = $this->service->dispatch( '1234567890', $order->get_id(), $this->operator_id );
+			$after  = strtotime( current_time( 'mysql' ) );
+
+			$this->assertMatchesRegularExpression(
+				'/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/',
+				$result['dispatch']['dispatched_at']
+			);
+			$timestamp = strtotime( $result['dispatch']['dispatched_at'] );
+			$this->assertGreaterThanOrEqual( $before - 2, $timestamp );
+			$this->assertLessThanOrEqual( $after + 2, $timestamp );
+		} finally {
+			update_option( 'timezone_string', $original_timezone );
+		}
 	}
 
 	public function test_dispatch_adds_a_private_order_note(): void {
@@ -150,6 +157,8 @@ class DispatchServiceTest extends DatabaseTestCase {
 		$this->assertFalse( (bool) $notes[0]->customer_note );
 		$this->assertStringContainsString( '1234567890', $notes[0]->content );
 		$this->assertStringContainsString( 'Warehouse Alice', $notes[0]->content );
+		$this->assertStringContainsString( 'زمان ثبت: ', $notes[0]->content );
+		$this->assertStringNotContainsString( 'UTC', $notes[0]->content );
 	}
 
 	public function test_dispatch_does_not_modify_the_order_barcode_metadata(): void {
