@@ -338,6 +338,9 @@ final class DispatchController {
 				: sprintf( __( 'کاربر #%d', 'woocommerce-parcel-dispatch' ), $record['user_id'] ),
 		);
 
+		$order                    = wc_get_order( $record['order_id'] );
+		$record['order_edit_url'] = $order instanceof WC_Order ? $order->get_edit_order_url() : '';
+
 		return $record;
 	}
 }

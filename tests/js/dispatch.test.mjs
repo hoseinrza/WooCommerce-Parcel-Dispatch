@@ -383,6 +383,74 @@ test( 'history renders stored markup as inert text', async ( t ) => {
 	assert.equal( body.rows[ 0 ].cells[ 3 ].textContent, payload );
 } );
 
+test( 'history links the order number to the order edit screen', async ( t ) => {
+	const editUrl = 'https://example.test/wp-admin/admin.php?page=wc-orders&action=edit&id=42';
+	const env = setup( t, {
+		history: {
+			items: [
+				{
+					id: 1,
+					barcode: '111',
+					order_id: 42,
+					order_edit_url: editUrl,
+					user_id: 7,
+					dispatched_at: '2026-10-31 10:00:00',
+					operator: { id: 7, name: 'Operator' },
+				},
+			],
+			total: 1,
+			page: 1,
+			per_page: 20,
+			pages: 1,
+		},
+	} );
+
+	await env.flush();
+	await env.flush();
+
+	const link = env.document.querySelector( '#wcpd-history-body a' );
+
+	assert.ok( link );
+	assert.equal( link.textContent, '#42' );
+	assert.equal( link.getAttribute( 'href' ), editUrl );
+	assert.equal( link.getAttribute( 'target' ), '_blank' );
+	assert.match( link.getAttribute( 'rel' ) || '', /noopener/ );
+} );
+
+test( 'history keeps the order number as text without a safe edit url', async ( t ) => {
+	const record = ( id, orderId, extra ) => ( {
+		id,
+		barcode: String( orderId ),
+		order_id: orderId,
+		user_id: 7,
+		dispatched_at: '2026-10-31 10:00:00',
+		operator: { id: 7, name: 'Operator' },
+		...extra,
+	} );
+
+	const env = setup( t, {
+		history: {
+			items: [
+				record( 1, 42 ),
+				record( 2, 43, { order_edit_url: 'javascript:alert(1)' } ),
+			],
+			total: 2,
+			page: 1,
+			per_page: 20,
+			pages: 1,
+		},
+	} );
+
+	await env.flush();
+	await env.flush();
+
+	const body = env.document.getElementById( 'wcpd-history-body' );
+
+	assert.equal( body.querySelectorAll( 'a' ).length, 0 );
+	assert.equal( body.rows[ 0 ].cells[ 1 ].textContent, '#42' );
+	assert.equal( body.rows[ 1 ].cells[ 1 ].textContent, '#43' );
+} );
+
 test( 'order card renders payload fields as inert text', async ( t ) => {
 	const env = setup( t );
 	const payload = '<img src=x onerror="window.__wcpdXss=3">';

@@ -78,6 +78,26 @@ class RestDispatchesTest extends RestTestCase {
 		$this->assertSame( '222', $response->get_data()['items'][0]['barcode'] );
 	}
 
+	public function test_history_includes_the_order_edit_url(): void {
+		$this->as_operator();
+		$order = $this->create_order( '333' );
+		$this->repository->create( '333', $order->get_id(), $this->operator_id, '2026-10-31 10:00:00' );
+
+		$response = $this->api( 'GET', '/wcpd/v1/dispatches', array( 'order_id' => $order->get_id() ) );
+		$item     = $response->get_data()['items'][0];
+
+		$this->assertSame( $order->get_edit_order_url(), $item['order_edit_url'] );
+	}
+
+	public function test_history_leaves_the_edit_url_empty_when_the_order_is_gone(): void {
+		$this->as_operator();
+		$this->repository->create( '444', 999999, $this->operator_id, '2026-10-31 10:00:00' );
+
+		$response = $this->api( 'GET', '/wcpd/v1/dispatches', array( 'order_id' => 999999 ) );
+
+		$this->assertSame( '', $response->get_data()['items'][0]['order_edit_url'] );
+	}
+
 	public function test_history_filters_by_operator(): void {
 		$this->as_operator();
 		$other = $this->create_user_with_role( 'shop_manager' );

@@ -269,6 +269,27 @@
 		row.appendChild( cell );
 	}
 
+	function appendOrderCell( row, item ) {
+		var cell = document.createElement( 'td' );
+		var label = '#' + item.order_id;
+		var url = typeof item.order_edit_url === 'string' ? item.order_edit_url : '';
+
+		// Never navigate to a scheme other than http(s).
+		if ( ! /^https?:\/\//i.test( url ) ) {
+			cell.textContent = label;
+			row.appendChild( cell );
+			return;
+		}
+
+		var link = document.createElement( 'a' );
+		link.href = url;
+		link.target = '_blank';
+		link.rel = 'noopener noreferrer';
+		link.textContent = label;
+		cell.appendChild( link );
+		row.appendChild( cell );
+	}
+
 	function renderHistory( response ) {
 		var items = response && Array.isArray( response.items ) ? response.items : [];
 
@@ -290,7 +311,7 @@
 			var operator = item.operator && item.operator.name ? item.operator.name : '#' + item.user_id;
 
 			appendCell( row, item.barcode );
-			appendCell( row, '#' + item.order_id );
+			appendOrderCell( row, item );
 			appendCell( row, operator );
 			appendCell( row, item.dispatched_at );
 			historyBody.appendChild( row );
