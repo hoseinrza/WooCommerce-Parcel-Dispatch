@@ -80,6 +80,36 @@ class DispatchServiceTest extends DatabaseTestCase {
 		$this->assertSame( 'wcpd_invalid_barcode', $result->get_error_code() );
 	}
 
+	public function test_locate_resolves_a_scan_typed_through_the_persian_keyboard_layout(): void {
+		$order = $this->create_order( 'RR123456789IR' );
+
+		$found = $this->service->locate( 'قق123456789هق' );
+
+		$this->assertInstanceOf( \WC_Order::class, $found );
+		$this->assertSame( $order->get_id(), $found->get_id() );
+	}
+
+	public function test_locate_resolves_a_scan_carrying_invisible_characters(): void {
+		$order = $this->create_order( '0012345678901' );
+
+		$found = $this->service->locate( "\u{200F}00123456\u{200B}78901\u{00A0}" );
+
+		$this->assertInstanceOf( \WC_Order::class, $found );
+		$this->assertSame( $order->get_id(), $found->get_id() );
+	}
+
+	public function test_dispatch_stores_the_canonical_barcode_from_a_layout_scan(): void {
+		$order  = $this->create_order( 'RR123456789IR' );
+		$result = $this->service->locate( 'قق123456789هق' );
+		$this->assertInstanceOf( \WC_Order::class, $result );
+
+		$dispatched = $this->service->dispatch( 'قق123456789هق', $order->get_id(), $this->operator_id );
+
+		$this->assertIsArray( $dispatched );
+		$this->assertSame( 'RR123456789IR', $dispatched['dispatch']['barcode'] );
+		$this->assertNotEmpty( $this->dispatch_notes( $order->get_id(), 'RR123456789IR' ) );
+	}
+
 	public function test_locate_reports_an_unknown_barcode(): void {
 		$result = $this->service->locate( '9999999999' );
 

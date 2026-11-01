@@ -44,6 +44,30 @@ class RestLookupTest extends RestTestCase {
 		$this->assertSame( $order->get_id(), $response->get_data()['order']['id'] );
 	}
 
+	public function test_lookup_accepts_a_scan_with_layout_letters_and_invisible_characters(): void {
+		$this->as_operator();
+		$letters = $this->create_order( 'RR123456789IR' );
+		$numeric = $this->create_order( '0012345678901' );
+
+		$scanned = $this->api( 'POST', '/wcpd/v1/barcode/lookup', array( 'barcode' => 'قق123456789هق' ) );
+		$dirty   = $this->api( 'POST', '/wcpd/v1/barcode/lookup', array( 'barcode' => "\u{200F}0012345678901\u{00A0}" ) );
+
+		$this->assertSame( 200, $scanned->get_status() );
+		$this->assertSame( $letters->get_id(), $scanned->get_data()['order']['id'] );
+		$this->assertSame( 200, $dirty->get_status() );
+		$this->assertSame( $numeric->get_id(), $dirty->get_data()['order']['id'] );
+	}
+
+	public function test_lookup_accepts_full_width_digits(): void {
+		$this->as_operator();
+		$order = $this->create_order( '0012345678901' );
+
+		$response = $this->api( 'POST', '/wcpd/v1/barcode/lookup', array( 'barcode' => '００１２３４５６７８９０１' ) );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( $order->get_id(), $response->get_data()['order']['id'] );
+	}
+
 	public function test_lookup_requires_a_barcode(): void {
 		$this->as_operator();
 

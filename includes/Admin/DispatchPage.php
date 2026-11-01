@@ -68,7 +68,6 @@ final class DispatchPage {
 					'requestFailed'  => __( 'ارتباط با سرور برقرار نشد. دوباره تلاش کنید.', 'woocommerce-parcel-dispatch' ),
 					'emptyHistory'   => __( 'هنوز مرسوله‌ای خروج نخورده است.', 'woocommerce-parcel-dispatch' ),
 					'loadFailed'     => __( 'بارگیری تاریخچه ناموفق بود.', 'woocommerce-parcel-dispatch' ),
-					'orderFound'     => __( 'سفارش پیدا شد. برای ثبت خروج، دکمه «تأیید خروج مرسوله» را بزنید.', 'woocommerce-parcel-dispatch' ),
 					'previousDispatch' => __( 'ثبت قبلی: %1$s — %2$s', 'woocommerce-parcel-dispatch' ),
 					'previous'       => __( 'قبلی', 'woocommerce-parcel-dispatch' ),
 					'next'           => __( 'بعدی', 'woocommerce-parcel-dispatch' ),
@@ -102,7 +101,7 @@ final class DispatchPage {
 					<span class="wcpd-brand-kicker"><?php esc_html_e( 'WooCommerce Parcel Dispatch', 'woocommerce-parcel-dispatch' ); ?></span>
 					<h1 class="wp-heading-inline"><?php esc_html_e( 'خروج مرسولات', 'woocommerce-parcel-dispatch' ); ?></h1>
 					<p class="wcpd-intro">
-						<?php esc_html_e( 'بارکد پستی را با بارکدخوان اسکن کنید یا دستی وارد کنید و Enter بزنید. خروج مرسوله فقط پس از تأیید شما ثبت می‌شود.', 'woocommerce-parcel-dispatch' ); ?>
+						<?php esc_html_e( 'بارکد پستی را با بارکدخوان اسکن کنید یا دستی وارد کنید و Enter بزنید. خروج مرسوله به‌محض پیدا شدن سفارش به‌صورت خودکار ثبت می‌شود.', 'woocommerce-parcel-dispatch' ); ?>
 					</p>
 				</div>
 			</header>
@@ -188,7 +187,7 @@ final class DispatchPage {
 
 				<div class="wcpd-actions">
 					<button type="button" class="button button-primary button-hero" id="wcpd-confirm">
-						<?php esc_html_e( 'تأیید خروج مرسوله', 'woocommerce-parcel-dispatch' ); ?>
+						<?php esc_html_e( 'تلاش مجدد ثبت خروج', 'woocommerce-parcel-dispatch' ); ?>
 					</button>
 					<button type="button" class="button button-secondary button-hero" id="wcpd-cancel">
 						<?php esc_html_e( 'لغو', 'woocommerce-parcel-dispatch' ); ?>

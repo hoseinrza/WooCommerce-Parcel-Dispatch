@@ -48,7 +48,6 @@ const I18N = {
 	requestFailed: 'درخواست ناموفق بود.',
 	emptyHistory: 'خالی',
 	loadFailed: 'بارگذاری ناموفق بود.',
-	orderFound: 'سفارش پیدا شد.',
 	previousDispatch: 'ثبت قبلی: %1$s — %2$s',
 	previous: 'قبلی',
 	next: 'بعدی',
@@ -197,9 +196,10 @@ test( 'Enter triggers exactly one lookup and preserves leading zeros', async ( t
 
 	await resolveLookup( env, 0, orderFor( '0012345678901' ) );
 
-	assert.equal( env.document.getElementById( 'wcpd-order' ).hidden, false );
+	assert.equal( env.dispatches().length, 1 );
+	assert.equal( env.dispatches()[ 0 ].data.barcode, '0012345678901' );
+	assert.equal( env.dispatches()[ 0 ].data.order_id, 42 );
 	assert.equal( env.document.activeElement, env.input );
-	assert.equal( env.dispatches().length, 0 );
 } );
 
 test( 'Tab with a scanned value triggers one lookup and is consumed', async ( t ) => {
@@ -242,6 +242,13 @@ test( 'repeated Enter events during an in-flight lookup send one request and kee
 
 	await resolveLookup( env, 0, orderFor( '1111111111' ) );
 
+	env.pending[ 1 ].resolve( {
+		dispatch: { id: 9, barcode: '1111111111', order_id: 42, user_id: 7, dispatched_at: '2026-10-31 10:00:00' },
+		order: orderFor( '1111111111' ),
+	} );
+	await env.flush();
+
+	assert.equal( env.input.value, '2222222222' );
 	assert.equal( env.document.activeElement, env.input );
 } );
 
@@ -261,10 +268,21 @@ test( 'focus stays in the input after an error and a second scan works', async (
 	assert.equal( env.lookups()[ 1 ].data.barcode, '0044444444' );
 
 	await resolveLookup( env, 1, orderFor( '0044444444' ) );
+
+	assert.equal( env.dispatches().length, 1 );
+
+	env.pending[ 2 ].resolve( {
+		dispatch: { id: 9, barcode: '0044444444', order_id: 42, user_id: 7, dispatched_at: '2026-10-31 10:00:00' },
+		order: orderFor( '0044444444' ),
+	} );
+	await env.flush();
+
+	assert.equal( env.document.getElementById( 'wcpd-message' ).textContent, I18N.dispatched );
+	assert.equal( env.input.value, '' );
 	assert.equal( env.document.activeElement, env.input );
 } );
 
-test( 'scanning never dispatches; explicit confirmation sends the displayed order', async ( t ) => {
+test( 'a successful scan registers the dispatch without another click', async ( t ) => {
 	const env = setup( t );
 
 	await scan( env, '0012345678901' );
@@ -273,18 +291,15 @@ test( 'scanning never dispatches; explicit confirmation sends the displayed orde
 		edit_url: 'https://example.test/wp-admin/admin.php?page=wc-orders&action=edit&id=42',
 	} );
 
-	assert.equal( env.dispatches().length, 0 );
-	assert.equal( env.document.getElementById( 'wcpd-open-order' ).hidden, false );
-
-	env.document.getElementById( 'wcpd-confirm' ).click();
-	await Promise.resolve();
-
 	assert.equal( env.dispatches().length, 1 );
 	// Copy into this realm so strict deep equality is not tripped by jsdom's Object prototype.
 	assert.deepEqual( { ...env.dispatches()[ 0 ].data }, {
 		barcode: '0012345678901',
 		order_id: 42,
 	} );
+	assert.equal( env.document.getElementById( 'wcpd-order' ).hidden, false );
+	assert.equal( env.document.getElementById( 'wcpd-message' ).textContent, I18N.dispatching );
+	assert.equal( env.document.getElementById( 'wcpd-confirm' ).disabled, true );
 
 	env.pending[ 1 ].resolve( {
 		dispatch: { id: 9, barcode: '0012345678901', order_id: 42, user_id: 7, dispatched_at: '2026-10-31 10:00:00' },
@@ -292,10 +307,15 @@ test( 'scanning never dispatches; explicit confirmation sends the displayed orde
 	} );
 	await env.flush();
 
+	assert.equal( env.document.getElementById( 'wcpd-message' ).textContent, I18N.dispatched );
 	assert.equal( env.document.activeElement, env.input );
 	assert.equal( env.input.value, '' );
 	assert.equal( env.document.getElementById( 'wcpd-order' ).hidden, true );
 	assert.equal( env.document.getElementById( 'wcpd-open-order' ).hidden, true );
+	assert.ok(
+		env.calls.filter( ( call ) => call.path.indexOf( '/wcpd/v1/dispatches' ) === 0 ).length >= 2,
+		'history reloads after a dispatch'
+	);
 } );
 
 test( 'open-order link points at the order edit screen and clears on cancel', async ( t ) => {
@@ -313,6 +333,12 @@ test( 'open-order link points at the order edit screen and clears on cancel', as
 	assert.equal( link.getAttribute( 'target' ), '_blank' );
 	assert.match( link.getAttribute( 'rel' ) || '', /noopener/ );
 
+	// Fail the automatic dispatch so the card (and the link) stay on screen.
+	env.pending[ 1 ].reject( { code: 'wcpd_dispatch_failed', message: 'failed' } );
+	await env.flush();
+
+	assert.equal( link.hidden, false );
+
 	env.document.getElementById( 'wcpd-cancel' ).click();
 
 	assert.equal( link.hidden, true );
@@ -328,27 +354,44 @@ test( 'open-order link refuses non-http urls', async ( t ) => {
 
 	assert.equal( link.hidden, true );
 	assert.equal( link.hasAttribute( 'href' ), false );
+
+	env.pending[ 1 ].reject( { code: 'wcpd_dispatch_failed', message: 'failed' } );
+	await env.flush();
 } );
 
-test( 'repeated confirmation clicks send one dispatch request', async ( t ) => {
+test( 'a failed automatic dispatch keeps the order so the button retries once', async ( t ) => {
 	const env = setup( t );
 
 	await scan( env, '0012345678901' );
 	await resolveLookup( env, 0, orderFor( '0012345678901' ) );
 
+	assert.equal( env.dispatches().length, 1 );
+
+	env.pending[ 1 ].reject( { code: 'wcpd_dispatch_failed', message: 'failed' } );
+	await env.flush();
+
+	assert.equal( env.document.getElementById( 'wcpd-order' ).hidden, false );
+	assert.equal( env.document.getElementById( 'wcpd-message' ).textContent, 'failed' );
+
 	const confirm = env.document.getElementById( 'wcpd-confirm' );
+	assert.equal( confirm.disabled, false );
+
 	confirm.click();
 	confirm.click();
 	confirm.click();
 	await Promise.resolve();
 
-	assert.equal( env.dispatches().length, 1 );
+	assert.equal( env.dispatches().length, 2 );
 
-	env.pending[ 1 ].resolve( {
+	env.pending[ 2 ].resolve( {
 		dispatch: { id: 9, barcode: '0012345678901', order_id: 42, user_id: 7, dispatched_at: '2026-10-31 10:00:00' },
 		order: orderFor( '0012345678901' ),
 	} );
 	await env.flush();
+
+	assert.equal( env.document.getElementById( 'wcpd-order' ).hidden, true );
+	assert.equal( env.document.getElementById( 'wcpd-message' ).textContent, I18N.dispatched );
+	assert.equal( env.document.activeElement, env.input );
 } );
 
 test( 'submitting the form with the lookup button behaves like a scan', async ( t ) => {
@@ -363,6 +406,14 @@ test( 'submitting the form with the lookup button behaves like a scan', async ( 
 	assert.equal( env.input.value, '' );
 
 	await resolveLookup( env, 0, orderFor( '0055555555' ) );
+
+	env.pending[ 1 ].resolve( {
+		dispatch: { id: 9, barcode: '0055555555', order_id: 42, user_id: 7, dispatched_at: '2026-10-31 10:00:00' },
+		order: orderFor( '0055555555' ),
+	} );
+	await env.flush();
+
+	assert.equal( env.document.getElementById( 'wcpd-message' ).textContent, I18N.dispatched );
 	assert.equal( env.document.activeElement, env.input );
 } );
 
@@ -623,6 +674,10 @@ test( 'order card renders payload fields as inert text', async ( t ) => {
 		customer: { name: payload, phone: payload },
 		shipping_address: payload,
 	} );
+
+	// Fail the automatic dispatch so the card stays rendered for inspection.
+	env.pending[ 1 ].reject( { code: 'wcpd_dispatch_failed', message: 'failed' } );
+	await env.flush();
 
 	const card = env.document.getElementById( 'wcpd-order' );
 

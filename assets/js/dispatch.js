@@ -161,7 +161,7 @@
 		setOpenOrderLink( order );
 
 		if ( confirmButton ) {
-			confirmButton.disabled = false;
+			confirmButton.disabled = busy;
 		}
 	}
 
@@ -219,7 +219,7 @@
 			}
 
 			renderOrder( response.order );
-			setMessage( i18n.orderFound || '', 'success' );
+			await registerDispatch();
 		} catch ( error ) {
 			hideOrder();
 			handleError( error );
@@ -229,12 +229,7 @@
 		}
 	}
 
-	async function confirmDispatch() {
-		if ( ! currentOrder || busy ) {
-			return;
-		}
-
-		setBusy( true, i18n.dispatching || '' );
+	async function registerDispatch() {
 		setMessage( i18n.dispatching || '', 'info' );
 
 		try {
@@ -248,16 +243,38 @@
 			} );
 
 			hideOrder();
-			resetScanner();
+
+			// Keep characters scanned while the request was in flight for the next parcel.
+			if ( '' === String( input.value || '' ).trim() ) {
+				resetScanner();
+			} else {
+				focusScanner();
+			}
+
 			setMessage( i18n.dispatched || '', 'success' );
 			loadHistory( 1 );
+
+			return true;
 		} catch ( error ) {
 			handleError( error );
-			focusScanner();
 
 			if ( error && error.code === 'wcpd_already_dispatched' ) {
 				loadHistory( historyPage );
 			}
+
+			return false;
+		}
+	}
+
+	async function confirmDispatch() {
+		if ( ! currentOrder || busy ) {
+			return;
+		}
+
+		setBusy( true, i18n.dispatching || '' );
+
+		try {
+			await registerDispatch();
 		} finally {
 			setBusy( false );
 			focusScanner();
