@@ -11,6 +11,7 @@ namespace WCPD\Admin;
 
 use WCPD\Plugin;
 use WCPD\Rest\DispatchController;
+use WCPD\Settings;
 
 final class DispatchPage {
 
@@ -275,6 +276,6 @@ final class DispatchPage {
 	}
 
 	private function capability(): string {
-		return (string) apply_filters( DispatchController::CAPABILITY_FILTER, 'manage_woocommerce' );
+		return (string) apply_filters( DispatchController::CAPABILITY_FILTER, Settings::required_capability() );
 	}
 }

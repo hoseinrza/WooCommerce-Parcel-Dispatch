@@ -11,6 +11,7 @@ namespace WCPD;
 
 use WCPD\Admin\DispatchPage;
 use WCPD\Admin\OrdersListColumn;
+use WCPD\Admin\SettingsPage;
 use WCPD\Barcode\BarcodeNormalizer;
 use WCPD\Barcode\BarcodeOrderFinder;
 use WCPD\Database\DatabaseInstaller;
@@ -22,13 +23,14 @@ use WCPD\Rest\DispatchController;
 
 final class Plugin {
 
-	public const VERSION     = '1.1.0';
+	public const VERSION     = '1.2.0';
 	public const TEXT_DOMAIN = 'woocommerce-parcel-dispatch';
 
 	private DispatchController $controller;
 	private DispatchPage $admin_page;
 	private DatabaseInstaller $installer;
 	private OrdersListColumn $orders_column;
+	private SettingsPage $settings_page;
 
 	public function __construct( string $plugin_file ) {
 		$repository = new DispatchRepository();
@@ -40,10 +42,11 @@ final class Plugin {
 			$repository
 		);
 
-		$this->controller    = new DispatchController( $service );
-		$this->admin_page    = new DispatchPage( $plugin_file );
-		$this->installer     = new DatabaseInstaller();
-		$this->orders_column = new OrdersListColumn( $repository, $plugin_file );
+		$this->controller     = new DispatchController( $service );
+		$this->admin_page     = new DispatchPage( $plugin_file );
+		$this->installer      = new DatabaseInstaller();
+		$this->orders_column  = new OrdersListColumn( $repository, $plugin_file );
+		$this->settings_page  = new SettingsPage();
 	}
 
 	public static function boot( string $plugin_file ): self {
@@ -54,6 +57,7 @@ final class Plugin {
 		add_action( 'rest_api_init', array( $plugin, 'register_rest_routes' ) );
 
 		add_action( 'admin_menu', array( $plugin, 'register_admin_menu' ) );
+		add_action( 'admin_init', array( $plugin, 'register_settings' ) );
 		add_action( 'admin_enqueue_scripts', array( $plugin, 'register_admin_assets' ) );
 		add_action( 'admin_enqueue_scripts', array( $plugin, 'register_order_list_assets' ) );
 		add_action( 'admin_init', array( $plugin, 'maybe_upgrade' ) );
@@ -67,6 +71,11 @@ final class Plugin {
 
 	public function register_admin_menu(): void {
 		$this->admin_page->add_menu();
+		$this->settings_page->add_menu();
+	}
+
+	public function register_settings(): void {
+		$this->settings_page->register_settings();
 	}
 
 	public function register_admin_assets( string $hook_suffix ): void {
